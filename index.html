@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="sw">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Graduate Profile Booklet</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="app-header">
+    <div>
+      <h1>Graduate Profile Booklet</h1>
+      <p>Ongeza, hariri, panga na tengeneza PDF/Word ya wahitimu — watu 12 kwa ukurasa.</p>
+    </div>
+    <div class="header-actions">
+      <button class="btn secondary" id="saveBtn">💾 Save Data</button>
+      <button class="btn" id="pdfBtn">📄 Download PDF</button>
+      <button class="btn" id="wordBtn">📝 Download Word</button>
+      <button class="btn dark" id="printBtn">🖨️ Print</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="panel form-panel">
+      <div class="panel-title">
+        <h2 id="formTitle">Ongeza Mhitimu</h2>
+        <span id="editingBadge" class="badge hidden">Editing</span>
+      </div>
+
+      <form id="studentForm">
+        <input type="hidden" id="editIndex" value="-1">
+
+        <div class="form-grid">
+          <label>
+            Jina la Mhitimu
+            <input id="name" type="text" placeholder="Mf. Jeremiah Makweba Dani" required>
+          </label>
+
+          <label>
+            Mahali anapotoka
+            <input id="place" type="text" placeholder="Mf. Bunda" required>
+          </label>
+
+          <label>
+            Somo analopenda
+            <input id="subject" type="text" placeholder="Mf. Biology" required>
+          </label>
+
+          <label>
+            Ndoto yake
+            <input id="dream" type="text" placeholder="Mf. Doctor" required>
+          </label>
+        </div>
+
+        <div class="photo-area">
+          <div class="photo-preview-wrap">
+            <img id="photoPreview" class="photo-preview empty" alt="Preview">
+            <div id="photoPlaceholder">📷<br><small>Hakuna picha</small></div>
+          </div>
+
+          <div class="photo-controls">
+            <label class="file-label">
+              Chagua Picha
+              <input id="photoInput" type="file" accept="image/*">
+            </label>
+            <button type="button" class="btn secondary" id="cropBtn" disabled>✂️ Crop Picha</button>
+            <p class="hint">Baada ya kuchagua picha, bonyeza <b>Crop Picha</b>. Picha itahifadhiwa ikiwa duara kwenye profile.</p>
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button class="btn" type="submit" id="submitBtn">➕ Add Mhitimu</button>
+          <button class="btn secondary" type="button" id="cancelEditBtn">↩️ Cancel / Clear</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="panel">
+      <div class="panel-title">
+        <div>
+          <h2>Preview</h2>
+          <p class="muted">Page moja = wahitimu 12 (4 × 3).</p>
+        </div>
+        <div class="preview-tools">
+          <label>
+            Kichwa cha ukurasa
+            <input id="pageTitle" value="FORM IV CLASS 2023" type="text">
+          </label>
+          <label>
+            Sub-title
+            <input id="pageSubtitle" value="CLASS MEMBERS" type="text">
+          </label>
+        </div>
+      </div>
+
+      <div id="bookletPreview" class="booklet"></div>
+    </section>
+
+    <section class="panel student-list-panel">
+      <div class="panel-title">
+        <div>
+          <h2>Orodha ya Wahitimu</h2>
+          <p class="muted">Bonyeza Edit kubadilisha taarifa ya mtu.</p>
+        </div>
+        <strong id="studentCount">0</strong>
+      </div>
+      <div id="studentList" class="student-list"></div>
+    </section>
+  </main>
+
+  <!-- Crop Modal -->
+  <div id="cropModal" class="modal hidden">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h3>Crop Picha</h3>
+        <button id="closeCrop" class="icon-btn">×</button>
+      </div>
+      <div class="crop-box">
+        <img id="cropImage" alt="Crop target">
+      </div>
+      <div class="modal-actions">
+        <button class="btn secondary" id="rotateLeft" type="button">↶ Rotate</button>
+        <button class="btn secondary" id="rotateRight" type="button">↷ Rotate</button>
+        <button class="btn" id="applyCrop" type="button">✓ Tumia Picha</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Libraries -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/docx@9.5.1/build/index.umd.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

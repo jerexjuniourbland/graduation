@@ -1,0 +1,94 @@
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#eef2f5;color:#17212b}
+button,input{font:inherit}
+.app-header{background:#0b6b3a;color:#fff;padding:18px 4%;display:flex;gap:20px;justify-content:space-between;align-items:center}
+.app-header h1{margin:0 0 5px;font-size:24px}
+.app-header p{margin:0;opacity:.9}
+.header-actions{display:flex;flex-wrap:wrap;gap:8px}
+.container{width:min(1500px,96%);margin:20px auto;display:grid;gap:20px}
+.panel{background:#fff;border-radius:14px;padding:20px;box-shadow:0 5px 20px rgba(0,0,0,.07)}
+.panel-title{display:flex;justify-content:space-between;gap:15px;align-items:center;margin-bottom:18px}
+.panel-title h2{margin:0;font-size:21px}
+.muted,.hint{color:#6b7280;font-size:13px}
+.form-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:15px}
+label{font-weight:700;font-size:14px;display:flex;flex-direction:column;gap:7px}
+input[type=text]{border:1px solid #ccd3da;border-radius:8px;padding:11px 12px;outline:none}
+input[type=text]:focus{border-color:#0b6b3a;box-shadow:0 0 0 3px rgba(11,107,58,.1)}
+.photo-area{margin-top:18px;display:flex;gap:25px;align-items:center}
+.photo-preview-wrap{width:145px;height:145px;position:relative;display:grid;place-items:center;border:2px dashed #b7c0c9;border-radius:50%;overflow:hidden;background:#f8fafb}
+.photo-preview{width:100%;height:100%;object-fit:cover}
+.photo-preview.empty{display:none}
+#photoPlaceholder{text-align:center;color:#87909a}
+.photo-controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.file-label{display:inline-flex;cursor:pointer;background:#0b6b3a;color:#fff;padding:11px 15px;border-radius:8px}
+.file-label input{display:none}
+.form-actions{margin-top:18px;display:flex;gap:10px}
+.btn{border:0;border-radius:8px;background:#0b6b3a;color:#fff;padding:10px 15px;cursor:pointer;font-weight:700}
+.btn:hover{filter:brightness(.95)}
+.btn.secondary{background:#e8edf0;color:#17212b}
+.btn.dark{background:#17212b}
+.badge{background:#fff3cd;color:#7a5b00;border-radius:20px;padding:5px 10px;font-size:12px}
+.hidden{display:none!important}
+.preview-tools{display:flex;gap:10px;flex-wrap:wrap}
+.preview-tools label{font-size:11px}
+.preview-tools input{padding:7px 9px}
+
+.booklet{background:#fff;padding:20px;max-width:1200px;margin:auto}
+.page{width:100%;aspect-ratio:210/297;background:#fff;page-break-after:always;break-after:page;position:relative;padding:8mm 7mm;overflow:hidden}
+.page:last-child{page-break-after:auto}
+.page-header{text-align:center;margin-bottom:7mm}
+.page-header .title{font-family:Georgia,serif;font-weight:700;font-size:20pt;margin:0 0 2mm}
+.page-header .subtitle{font-family:Georgia,serif;font-weight:700;font-size:16pt;margin:0}
+.header-box{display:inline-block;background:#e7e7e7;padding:4mm 18mm}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);grid-template-rows:repeat(3,1fr);gap:5mm 5mm;height:calc(100% - 28mm)}
+.student-card{text-align:center;min-width:0;display:flex;flex-direction:column;align-items:center}
+.student-photo{width:35mm;height:35mm;border-radius:50%;object-fit:cover;border:1px solid #ddd;background:#e9eef1}
+.no-photo{display:grid;place-items:center;font-size:9px;color:#777}
+.student-name{font-family:Georgia,serif;font-weight:700;font-size:9.2pt;margin-top:2.5mm;line-height:1.08;text-transform:uppercase}
+.details{width:100%;text-align:left;font-size:7.3pt;line-height:1.18;margin-top:1.8mm}
+.details div{margin-bottom:1.2mm}
+.details b{font-weight:700}
+.page-number{position:absolute;bottom:3mm;left:0;right:0;text-align:center;font-family:Georgia,serif;font-size:9pt;color:#333}
+
+.student-list{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.student-row{border:1px solid #dde3e8;border-radius:10px;padding:10px;display:flex;gap:10px;align-items:center}
+.list-photo{width:55px;height:55px;border-radius:50%;object-fit:cover;background:#e8edf0}
+.row-info{flex:1;min-width:0}
+.row-info strong{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row-info small{color:#68717a}
+.row-actions{display:flex;gap:5px}
+.small-btn{border:0;border-radius:6px;padding:7px 9px;cursor:pointer}
+.edit{background:#e9f5ee;color:#0b6b3a}
+.delete{background:#fde8e8;color:#a11}
+
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1000;display:grid;place-items:center;padding:20px}
+.modal-card{width:min(850px,100%);background:#fff;border-radius:14px;padding:18px}
+.modal-head{display:flex;justify-content:space-between;align-items:center}
+.icon-btn{font-size:28px;border:0;background:transparent;cursor:pointer}
+.crop-box{height:300px;background:#222;margin:8px 0;display:grid;place-items:center;overflow:hidden}
+.crop-box img{max-width:80%;display:block}
+.modal-actions{display:flex;justify-content:flex-end;gap:8px}
+
+@media(max-width:900px){
+ .form-grid{grid-template-columns:repeat(2,1fr)}
+ .student-list{grid-template-columns:repeat(2,1fr)}
+}
+@media(max-width:600px){
+ .app-header{flex-direction:column;align-items:flex-start}
+ .form-grid{grid-template-columns:1fr}
+ .student-list{grid-template-columns:1fr}
+ .photo-area{flex-direction:column;align-items:flex-start}
+ .page{padding:5mm 4mm}
+ .grid{gap:3mm 2mm}
+ .student-photo{width:30mm;height:30mm}
+ .student-name{font-size:7pt}
+ .details{font-size:5.6pt}
+}
+@media print{
+ body{background:#fff}
+ .app-header,.form-panel,.student-list-panel,.panel-title,.preview-tools{display:none!important}
+ .container{width:100%;margin:0;display:block}
+ .panel{box-shadow:none;padding:0}
+ .booklet{padding:0;max-width:none}
+ .page{width:210mm;height:297mm;aspect-ratio:auto;padding:8mm 7mm}
+}
