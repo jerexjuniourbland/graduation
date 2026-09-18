@@ -1,289 +1,73 @@
-const $ = id => document.getElementById(id);
+const MAX=40, DB_NAME='ClassBookDB', DB_VERSION=2;
+let students=[], staff=[], currentPhoto='', currentCropImage=null;
+let media={logo:'',school:'',graduates:'',guestPhoto:'',headPhoto:'',closePhoto:'',closeLogo:''};
+const defaults={schoolName:'',className:'FORM IV',year:'2026',pageTitle:'CLASS MEMBERS',coverHeading:'FORM IV CLASS 2026',coverSubheading:'GRADUATION / CLASS BOOK',coverMotto:'',coverTheme:'navy',guestName:'',guestTitle:'',guestMessage:'',headName:'',headTitle:'HEADMASTER / HEADMISTRESS',headMessage:'',closeHeading:'OUR JOURNEY CONTINUES',closeMessage:'This is not the end. It is the beginning of a new chapter. May every graduate carry the memories, lessons and friendships of this journey into a bright future.',closeQuote:'Dream Big • Work Hard • Stay Humble',closeFooter:'Class of 2026',closeSchool:''};
+const fields=Object.keys(defaults); const $=id=>document.getElementById(id); let settings={...defaults};
 
-let students = JSON.parse(localStorage.getItem("graduate_students_v1") || "[]");
-let cropper = null;
-let croppedImageData = "";
-let originalImageData = "";
+function openDB(){return new Promise((resolve,reject)=>{const r=indexedDB.open(DB_NAME,DB_VERSION);r.onupgradeneeded=()=>{const db=r.result;if(!db.objectStoreNames.contains('students'))db.createObjectStore('students',{keyPath:'id',autoIncrement:true});if(!db.objectStoreNames.contains('staff'))db.createObjectStore('staff',{keyPath:'id',autoIncrement:true})};r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)})}
+async function loadStore(name){const db=await openDB();return new Promise((resolve,reject)=>{const q=db.transaction(name,'readonly').objectStore(name).getAll();q.onsuccess=()=>resolve(q.result.sort((a,b)=>a.id-b.id));q.onerror=()=>reject(q.error)})}
+async function replaceStore(name,arr){const db=await openDB();return new Promise((resolve,reject)=>{const tx=db.transaction(name,'readwrite'),st=tx.objectStore(name);st.clear();arr.forEach(x=>st.add(x));tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)})}
+function saveSettings(){settings={};fields.forEach(id=>settings[id]=$(id).value);settings.media=media;localStorage.setItem('classBookSettingsV3',JSON.stringify(settings))}
+function loadSettings(){try{const x=JSON.parse(localStorage.getItem('classBookSettingsV3')||'null')||JSON.parse(localStorage.getItem('classBookSettingsV2')||'null');if(x)settings={...defaults,...x}}catch(e){}fields.forEach(id=>$(id).value=settings[id]??defaults[id]);media={...media,...(settings.media||{})}}
+function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
+function escXml(s){return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&apos;')}
+function showBusy(t){const old=$('busy');if(old)old.remove();const d=document.createElement('div');d.className='busy';d.id='busy';d.textContent=t;document.body.appendChild(d)}function hideBusy(){$('busy')?.remove()}
+function compress(file,maxW=700,maxH=700,quality=.62){return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=e=>{const im=new Image();im.onload=()=>{const sc=Math.min(1,maxW/im.width,maxH/im.height),c=document.createElement('canvas');c.width=Math.max(1,Math.round(im.width*sc));c.height=Math.max(1,Math.round(im.height*sc));c.getContext('2d').drawImage(im,0,0,c.width,c.height);resolve(c.toDataURL('image/jpeg',quality))};im.onerror=reject;im.src=e.target.result};r.onerror=reject;r.readAsDataURL(file)})}
+function previewMedia(id,src){$(id).innerHTML=src?`<img src="${src}">`:'No image'}
 
-function saveData(){
-  localStorage.setItem("graduate_students_v1", JSON.stringify(students));
-  alert("Taarifa zimehifadhiwa kwenye browser hii.");
-}
-
-function resetForm(){
-  $("studentForm").reset();
-  $("editIndex").value = "-1";
-  $("formTitle").textContent = "Ongeza Mhitimu";
-  $("submitBtn").textContent = "➕ Add Mhitimu";
-  $("editingBadge").classList.add("hidden");
-  croppedImageData = "";
-  originalImageData = "";
-  $("photoPreview").src = "";
-  $("photoPreview").classList.add("empty");
-  $("photoPlaceholder").style.display = "block";
-  $("photoInput").value = "";
-  $("cropBtn").disabled = true;
-}
-
-function editStudent(index){
-  const s = students[index];
-  $("editIndex").value = index;
-  $("name").value = s.name || "";
-  $("place").value = s.place || "";
-  $("subject").value = s.subject || "";
-  $("dream").value = s.dream || "";
-  croppedImageData = s.photo || "";
-  originalImageData = s.photo || "";
-  if(s.photo){
-    $("photoPreview").src = s.photo;
-    $("photoPreview").classList.remove("empty");
-    $("photoPlaceholder").style.display = "none";
-  } else {
-    $("photoPreview").src = "";
-    $("photoPreview").classList.add("empty");
-    $("photoPlaceholder").style.display = "block";
-  }
-  $("formTitle").textContent = "Hariri Mhitimu";
-  $("submitBtn").textContent = "💾 Save Changes";
-  $("editingBadge").classList.remove("hidden");
-  window.scrollTo({top:0, behavior:"smooth"});
-}
-
-function deleteStudent(index){
-  if(!confirm(`Unataka kufuta ${students[index].name}?`)) return;
-  students.splice(index,1);
-  saveData();
-  renderAll();
-  if(Number($("editIndex").value) === index) resetForm();
-}
-
-function escapeHtml(str){
-  return String(str ?? "").replace(/[&<>"']/g, c => ({
-    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
-  }[c]));
-}
-
-function makeCard(s){
-  const photo = s.photo
-    ? `<img class="student-photo" src="${s.photo}" alt="">`
-    : `<div class="student-photo no-photo">NO PHOTO</div>`;
-  return `
-    <article class="student-card">
-      ${photo}
-      <div class="student-name">${escapeHtml(s.name)}</div>
-      <div class="details">
-        <div><b>Jina:</b> ${escapeHtml(s.name)}</div>
-        <div><b>Mahali anapotoka:</b> ${escapeHtml(s.place)}</div>
-        <div><b>Somo analopenda:</b> ${escapeHtml(s.subject)}</div>
-        <div><b>Ndoto yake:</b> ${escapeHtml(s.dream)}</div>
-      </div>
-    </article>`;
-}
-
-function renderPreview(){
-  const title = $("pageTitle").value || "FORM IV CLASS";
-  const subtitle = $("pageSubtitle").value || "CLASS MEMBERS";
-  const pages = [];
-  for(let i=0;i<students.length;i+=12){
-    const group = students.slice(i,i+12);
-    const cards = group.map(makeCard).join("");
-    pages.push(`
-      <section class="page">
-        <div class="page-header">
-          <div class="header-box">
-            <p class="title">${escapeHtml(title)}</p>
-            <p class="subtitle">${escapeHtml(subtitle)}</p>
-          </div>
-        </div>
-        <div class="grid">${cards}</div>
-        <div class="page-number">${Math.floor(i/12)+1}</div>
-      </section>`);
-  }
-  $("bookletPreview").innerHTML = pages.length ? pages.join("") :
-    `<div style="padding:50px;text-align:center;color:#777">Ongeza wahitimu ili preview ionekane.</div>`;
-}
-
+function coverPage(){return `<div class="word-page cover-page theme-${esc($('coverTheme').value)}"><div class="cover-frame">${media.logo?`<img class="cover-logo" src="${media.logo}">`:''}<div class="cover-school">${esc($('schoolName').value)}</div><div class="cover-main">${media.school?`<img class="cover-school-photo" src="${media.school}">`:''}<div class="cover-heading">${esc($('coverHeading').value)}</div><div class="cover-subheading">${esc($('coverSubheading').value)}</div>${$('coverMotto').value?`<div class="cover-motto">“${esc($('coverMotto').value)}”</div>`:''}</div>${media.graduates?`<img class="cover-group" src="${media.graduates}">`:''}<div class="cover-bottom">${esc($('schoolName').value)} • ${esc($('year').value)}</div></div></div>`}
+function infoPage(){return `<div class="word-page profile-page"><div class="profile-inner"><div class="profile-label">CLASS BOOK</div><div class="profile-name">${esc($('className').value)} ${esc($('year').value)}</div><p class="profile-message">Welcome to our class memory book — a collection of faces, dreams, friendships and moments to remember.</p><div class="profile-title">${esc($('schoolName').value)}</div></div></div>`}
+function studentPages(){let out='';for(let start=0;start<students.length;start+=12){const page=students.slice(start,start+12);out+=`<div class="word-page student-page"><div class="book-heading"><div class="title">${esc($('className').value)} ${esc($('year').value)}</div><div class="subtitle">${esc($('pageTitle').value)}</div>${$('schoolName').value?`<div class="school-small">${esc($('schoolName').value)}</div>`:''}<div class="heading-line"></div></div><div class="students-grid">${page.map(s=>`<div class="student-card">${s.photo?`<img class="student-photo" src="${s.photo}">`:`<div class="student-photo empty-photo">PHOTO</div>`}<div class="student-info"><div class="info-line"><strong>Jina:</strong> ${esc(s.name)}</div><div class="info-line"><strong>Somo analopenda:</strong> ${esc(s.subject||'')}</div><div class="info-line"><strong>Ndoto yake:</strong> ${esc(s.dream||'')}</div></div></div>`).join('')}</div><div class="page-number">${Math.floor(start/12)+3}</div></div>`}return out||`<div class="word-page student-page"><div class="book-heading"><div class="title">${esc($('className').value)} ${esc($('year').value)}</div><div class="subtitle">${esc($('pageTitle').value)}</div></div><p style="text-align:center">Ongeza wanafunzi ili waonekane hapa.</p></div>`}
+function staffPages(){if(!staff.length)return '';let out='',pageNo=3+Math.ceil(students.length/12);for(let start=0;start<staff.length;start+=8){const page=staff.slice(start,start+8);out+=`<div class="word-page staff-page"><div class="book-heading"><div class="title">STAFF MEMBERS</div><div class="subtitle">${esc($('schoolName').value)}</div><div class="heading-line"></div></div><div class="staff-grid">${page.map(s=>`<div class="staff-card">${s.photo?`<img class="staff-photo" src="${s.photo}">`:`<div class="staff-photo empty-photo">PHOTO</div>`}<div class="staff-name">${esc(s.name)}</div><div class="staff-job">${esc(s.job)}</div></div>`).join('')}</div><div class="page-number">${pageNo++}</div></div>`}return out}
+function profilePage(kind){const guest=kind==='guest';const name=$(guest?'guestName':'headName').value,title=$(guest?'guestTitle':'headTitle').value,msg=$(guest?'guestMessage':'headMessage').value,photo=media[guest?'guestPhoto':'headPhoto'];return `<div class="word-page profile-page"><div class="profile-inner"><div class="profile-label">${guest?'GUEST OF HONOUR / MGENI RASMI':'MESSAGE FROM THE HEAD OF SCHOOL'}</div>${photo?`<img class="profile-photo" src="${photo}">`:`<div class="profile-photo empty-photo">PHOTO</div>`}<div class="profile-name">${esc(name)}</div><div class="profile-title">${esc(title)}</div><div class="profile-message">${esc(msg)}</div></div></div>`}
+function closePage(){return `<div class="word-page close-page theme-${esc($('coverTheme').value)}"><div class="close-frame"><div class="close-content"><div class="close-heading">${esc($('closeHeading').value)}</div>${media.closePhoto?`<img class="close-photo" src="${media.closePhoto}">`:''}<p class="close-message">${esc($('closeMessage').value)}</p><div class="close-quote">“${esc($('closeQuote').value)}”</div>${media.closeLogo?`<img class="close-logo" src="${media.closeLogo}">`:''}<div class="close-footer">${esc($('closeSchool').value||$('schoolName').value)}</div><div class="close-footer small">${esc($('closeFooter').value)}</div></div></div></div>`}
+function renderBook(){$('bookPreview').innerHTML=coverPage()+infoPage()+studentPages()+staffPages()+profilePage('guest')+profilePage('head')+closePage()}
 function renderList(){
-  $("studentCount").textContent = students.length;
-  $("studentList").innerHTML = students.length ? students.map((s,i)=>`
-    <div class="student-row">
-      ${s.photo ? `<img class="list-photo" src="${s.photo}" alt="">` : `<div class="list-photo"></div>`}
-      <div class="row-info">
-        <strong>${escapeHtml(s.name)}</strong>
-        <small>${escapeHtml(s.place)} • ${escapeHtml(s.subject)} • ${escapeHtml(s.dream)}</small>
-      </div>
-      <div class="row-actions">
-        <button class="small-btn edit" onclick="editStudent(${i})">Edit</button>
-        <button class="small-btn delete" onclick="deleteStudent(${i})">Delete</button>
-      </div>
-    </div>`).join("") :
-    `<p class="muted">Bado hakuna mwanafunzi aliyeongezwa.</p>`;
+  $('countBadge').textContent=`${students.length} / ${MAX}`;
+  $('studentList').innerHTML=students.length?students.map((s,i)=>`<div class="student-row"><strong>${i+1}</strong>${s.photo?`<img class="thumb" src="${s.photo}">`:'<div class="thumb"></div>'}<div><b>${esc(s.name)}</b><br><small><b>Somo:</b> ${esc(s.subject||'')} &nbsp; <b>Ndoto:</b> ${esc(s.dream||'')}</small></div><div class="row-actions"><button class="edit" onclick="editStudent(${i})">Edit</button><button class="delete" onclick="deleteStudent(${i})">Delete</button></div></div>`).join(''):'<div class="empty-list">Bado hujaongeza mwanafunzi.</div>';
+  $('staffCount').textContent=`${staff.length} staff`;
+  $('staffList').innerHTML=staff.length?staff.map((s,i)=>`<div class="staff-row"><strong>${i+1}</strong>${s.photo?`<img class="thumb" src="${s.photo}">`:'<div class="thumb"></div>'}<div><b>${esc(s.name)}</b><br><small>${esc(s.job)}</small></div><div class="row-actions"><button class="edit" onclick="editStaff(${i})">Edit</button><button class="delete" onclick="deleteStaff(${i})">Delete</button></div></div>`).join(''):'<div class="empty-list">Bado hujaongeza staff.</div>';
 }
+function resetStudent(){$('editIndex').value=-1;$('studentName').value='';$('studentSubject').value='';$('studentDream').value='';$('photo').value='';currentPhoto='';$('photoPreview').textContent='PHOTO';$('cropBtn').disabled=true;$('saveBtn').textContent='+ Add Student'}
+function resetStaff(){$('staffEditIndex').value=-1;$('staffName').value='';$('staffJob').value='';$('staffPhoto').value='';$('staffPhotoPreview').textContent='PHOTO';$('staffSaveBtn').textContent='+ Add Staff'}
 
-function renderAll(){
-  renderPreview();
-  renderList();
-}
+$('photo').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;openCropper(f)});
+function openCropper(file){showBusy('Inapakia picha kwa ajili ya crop...');const r=new FileReader();r.onload=e=>{const im=new Image();im.onload=()=>{currentCropImage=im;hideBusy();$('zoomRange').value=1;$('xRange').value=0;$('yRange').value=0;$('cropModal').classList.remove('hidden');drawCrop()};im.src=e.target.result};r.readAsDataURL(file)}
+function drawCrop(){if(!currentCropImage)return;const c=$('cropCanvas'),ctx=c.getContext('2d'),size=500,im=currentCropImage;ctx.clearRect(0,0,size,size);ctx.fillStyle='#111';ctx.fillRect(0,0,size,size);const zoom=+$('zoomRange').value;const scale=Math.max(size/im.width,size/im.height)*zoom;const w=im.width*scale,h=im.height*scale;const x=(size-w)/2 + +$('xRange').value,y=(size-h)/2 + +$('yRange').value;ctx.drawImage(im,x,y,w,h);ctx.save();ctx.strokeStyle='white';ctx.lineWidth=3;ctx.beginPath();ctx.arc(250,250,247,0,Math.PI*2);ctx.stroke();ctx.restore()}
+['zoomRange','xRange','yRange'].forEach(id=>$(id).addEventListener('input',drawCrop));
+$('applyCrop').onclick=()=>{const c=document.createElement('canvas'),ctx=c.getContext('2d'),size=600;c.width=c.height=size;const im=currentCropImage,zoom=+$('zoomRange').value,scale=Math.max(size/im.width,size/im.height)*zoom,w=im.width*scale,h=im.height*scale,x=(size-w)/2 + (+$('xRange').value*size/500),y=(size-h)/2 + (+$('yRange').value*size/500);ctx.drawImage(im,x,y,w,h);currentPhoto=c.toDataURL('image/jpeg',.72);$('photoPreview').innerHTML=`<img src="${currentPhoto}">`;$('cropBtn').disabled=false;$('cropModal').classList.add('hidden')};
+$('cancelCrop').onclick=()=>{$('cropModal').classList.add('hidden');$('photo').value='';currentCropImage=null};$('closeCrop').onclick=$('cancelCrop').onclick;$('cropBtn').onclick=()=>currentCropImage&&$('cropModal').classList.remove('hidden');
 
-$("studentForm").addEventListener("submit", e=>{
-  e.preventDefault();
-  const index = Number($("editIndex").value);
-  const student = {
-    name: $("name").value.trim(),
-    place: $("place").value.trim(),
-    subject: $("subject").value.trim(),
-    dream: $("dream").value.trim(),
-    photo: croppedImageData || originalImageData || ""
-  };
-  if(!student.name) return alert("Weka jina la mhitimu.");
-  if(index >= 0){
-    students[index] = student;
-  }else{
-    students.push(student);
-  }
-  saveData();
-  renderAll();
-  resetForm();
-});
+$('studentForm').addEventListener('submit',async e=>{e.preventDefault();const idx=+$('editIndex').value;if(idx<0&&students.length>=MAX){alert('Kikomo ni wanafunzi 40.');return}const s={name:$('studentName').value.trim(),subject:$('studentSubject').value.trim(),dream:$('studentDream').value.trim(),photo:currentPhoto||(idx>=0?students[idx].photo:'')};if(!s.name){alert('Weka jina la mwanafunzi.');return}if(idx>=0)students[idx]=s;else students.push(s);showBusy('Inahifadhi mwanafunzi...');await replaceStore('students',students);hideBusy();renderList();renderBook();resetStudent()});
+window.editStudent=i=>{const s=students[i];$('editIndex').value=i;$('studentName').value=s.name;$('studentSubject').value=s.subject||'';$('studentDream').value=s.dream||'';currentPhoto=s.photo||'';$('photoPreview').innerHTML=currentPhoto?`<img src="${currentPhoto}">`:'PHOTO';$('cropBtn').disabled=!currentPhoto;$('saveBtn').textContent='Save Changes';scrollTo({top:document.querySelector('.student-form').offsetTop-20,behavior:'smooth'})};
+window.deleteStudent=async i=>{if(!confirm(`Unafuta ${students[i].name}?`))return;students.splice(i,1);showBusy('Inafuta...');await replaceStore('students',students);hideBusy();renderList();renderBook()};
 
-$("cancelEditBtn").addEventListener("click", resetForm);
-$("saveBtn").addEventListener("click", saveData);
-$("pageTitle").addEventListener("input", renderPreview);
-$("pageSubtitle").addEventListener("input", renderPreview);
+$('staffForm').addEventListener('submit',async e=>{e.preventDefault();const idx=+$('staffEditIndex').value;const s={name:$('staffName').value.trim(),job:$('staffJob').value.trim(),photo:$('staffPhotoPreview').querySelector('img')?.src||(idx>=0?staff[idx].photo:'')};if(!s.name){alert('Weka jina la staff.');return}if(idx>=0)staff[idx]=s;else staff.push(s);showBusy('Inahifadhi staff...');await replaceStore('staff',staff);hideBusy();renderList();renderBook();resetStaff()});
+$('staffPhoto').addEventListener('change',async e=>{if(!e.target.files[0])return;showBusy('Inapunguza picha...');const src=await compress(e.target.files[0],600,600,.62);$('staffPhotoPreview').innerHTML=`<img src="${src}">`;hideBusy()});
+window.editStaff=i=>{const s=staff[i];$('staffEditIndex').value=i;$('staffName').value=s.name;$('staffJob').value=s.job||'';$('staffPhotoPreview').innerHTML=s.photo?`<img src="${s.photo}">`:'PHOTO';$('staffSaveBtn').textContent='Save Changes';scrollTo({top:document.querySelector('.staff-form').offsetTop-20,behavior:'smooth'})};
+window.deleteStaff=async i=>{if(!confirm(`Unafuta ${staff[i].name}?`))return;staff.splice(i,1);showBusy('Inafuta...');await replaceStore('staff',staff);hideBusy();renderList();renderBook()};
+$('clearBtn').onclick=resetStudent;$('staffClearBtn').onclick=resetStaff;$('previewBtn').onclick=()=>$('bookPreview').scrollIntoView({behavior:'smooth'});$('printBtn').onclick=()=>window.print();
 
-$("photoInput").addEventListener("change", e=>{
-  const file = e.target.files[0];
-  if(!file) return;
-  const reader = new FileReader();
-  reader.onload = ()=>{
-    originalImageData = reader.result;
-    $("cropImage").src = reader.result;
-    $("cropModal").classList.remove("hidden");
-    if(cropper) cropper.destroy();
-    cropper = new Cropper($("cropImage"), {
-      aspectRatio:1,
-      viewMode:1,
-      dragMode:"move",
-      autoCropArea:.9,
-      responsive:true
-    });
-  };
-  reader.readAsDataURL(file);
-});
+async function mediaInput(id,key,prev){$(id).addEventListener('change',async e=>{if(!e.target.files[0])return;showBusy('Inapunguza picha...');media[key]=await compress(e.target.files[0],1100,900,.65);saveSettings();previewMedia(prev,media[key]);hideBusy();renderBook()})}
+fields.forEach(id=>$(id).addEventListener('input',()=>{saveSettings();renderBook()}));
+mediaInput('logo','logo','logoPrev');mediaInput('schoolPhoto','school','schoolPrev');mediaInput('graduates','graduates','graduatesPrev');mediaInput('guestPhoto','guestPhoto','guestPhotoPrev');mediaInput('headPhoto','headPhoto','headPhotoPrev');mediaInput('closePhoto','closePhoto','closePhotoPrev');mediaInput('closeLogo','closeLogo','closeLogoPrev');
 
-$("cropBtn").addEventListener("click", ()=>{
-  if(!originalImageData) return;
-  $("cropImage").src = originalImageData;
-  $("cropModal").classList.remove("hidden");
-  if(cropper) cropper.destroy();
-  cropper = new Cropper($("cropImage"), {aspectRatio:1, viewMode:1, dragMode:"move", autoCropArea:.9});
-});
-
-$("applyCrop").addEventListener("click", ()=>{
-  if(!cropper) return;
-  const canvas = cropper.getCroppedCanvas({width:700,height:700,imageSmoothingQuality:"high"});
-  croppedImageData = canvas.toDataURL("image/jpeg", .9);
-  $("photoPreview").src = croppedImageData;
-  $("photoPreview").classList.remove("empty");
-  $("photoPlaceholder").style.display = "none";
-  $("cropModal").classList.add("hidden");
-  cropper.destroy(); cropper=null;
-});
-
-$("closeCrop").addEventListener("click", ()=>{
-  $("cropModal").classList.add("hidden");
-  if(cropper){cropper.destroy();cropper=null;}
-});
-$("rotateLeft").addEventListener("click", ()=>cropper && cropper.rotate(-90));
-$("rotateRight").addEventListener("click", ()=>cropper && cropper.rotate(90));
-
-async function downloadPDF(){
-  if(!students.length) return alert("Ongeza angalau mhitimu mmoja.");
-  const pages = [...document.querySelectorAll(".page")];
-  const {jsPDF} = window.jspdf;
-  const pdf = new jsPDF({orientation:"portrait", unit:"mm", format:"a4"});
-  for(let i=0;i<pages.length;i++){
-    const canvas = await html2canvas(pages[i], {
-      scale:2.2, useCORS:true, backgroundColor:"#ffffff"
-    });
-    const img = canvas.toDataURL("image/jpeg", .94);
-    if(i>0) pdf.addPage();
-    pdf.addImage(img, "JPEG", 0, 0, 210, 297);
-  }
-  pdf.save("graduate-booklet.pdf");
-}
-
-$("pdfBtn").addEventListener("click", downloadPDF);
-
-async function downloadWord(){
-  if(!students.length) return alert("Ongeza angalau mhitimu mmoja.");
-  const {Document, Packer, Paragraph, TextRun, ImageRun, Table, TableRow, TableCell, AlignmentType, WidthType} = docx;
-  const children = [];
-  const title = $("pageTitle").value || "FORM IV CLASS";
-  const subtitle = $("pageSubtitle").value || "CLASS MEMBERS";
-
-  for(let p=0;p<students.length;p+=12){
-    if(p>0) children.push(new Paragraph({pageBreakBefore:true}));
-    children.push(new Paragraph({
-      alignment: AlignmentType.CENTER,
-      children:[new TextRun({text:title,bold:true,size:30})]
-    }));
-    children.push(new Paragraph({
-      alignment: AlignmentType.CENTER,
-      children:[new TextRun({text:subtitle,bold:true,size:24})]
-    }));
-
-    const rows=[];
-    const group=students.slice(p,p+12);
-    for(let r=0;r<3;r++){
-      const cells=[];
-      for(let c=0;c<4;c++){
-        const s=group[r*4+c];
-        if(!s){
-          cells.push(new TableCell({children:[new Paragraph("")]}));
-          continue;
-        }
-        const cellChildren=[];
-        if(s.photo){
-          try{
-            const data = await fetch(s.photo).then(x=>x.arrayBuffer());
-            cellChildren.push(new Paragraph({
-              alignment:AlignmentType.CENTER,
-              children:[new ImageRun({data, transformation:{width:105,height:105}, type:"jpg"})]
-            }));
-          }catch(err){}
-        }
-        cellChildren.push(new Paragraph({alignment:AlignmentType.CENTER, children:[
-          new TextRun({text:s.name.toUpperCase(),bold:true,size:17})
-        ]}));
-        cellChildren.push(new Paragraph({children:[new TextRun({text:"Jina: ",bold:true,size:12}),new TextRun({text:s.name,size:12})]}));
-        cellChildren.push(new Paragraph({children:[new TextRun({text:"Mahali anapotoka: ",bold:true,size:12}),new TextRun({text:s.place,size:12})]}));
-        cellChildren.push(new Paragraph({children:[new TextRun({text:"Somo analopenda: ",bold:true,size:12}),new TextRun({text:s.subject,size:12})]}));
-        cellChildren.push(new Paragraph({children:[new TextRun({text:"Ndoto yake: ",bold:true,size:12}),new TextRun({text:s.dream,size:12})]}));
-        cells.push(new TableCell({children:cellChildren}));
-      }
-      rows.push(new TableRow({children:cells}));
-    }
-    children.push(new Table({
-      width:{size:100,type:WidthType.PERCENTAGE},
-      rows
-    }));
-    children.push(new Paragraph({
-      alignment:AlignmentType.CENTER,
-      children:[new TextRun({text:String(Math.floor(p/12)+1),size:14})]
-    }));
-  }
-
-  const doc = new Document({sections:[{properties:{page:{size:{width:11906,height:16838}}},children}]});
-  const blob = await Packer.toBlob(doc);
-  const a=document.createElement("a");
-  a.href=URL.createObjectURL(blob);
-  a.download="graduate-booklet.docx";
-  a.click();
-  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
-}
-$("wordBtn").addEventListener("click", downloadWord);
-
-$("printBtn").addEventListener("click", ()=>window.print());
-
-renderAll();
+// -------- REAL DOCX (OOXML + bundled JSZip) --------
+function b64Bytes(data){const b=atob(data.split(',')[1]);const a=new Uint8Array(b.length);for(let i=0;i<b.length;i++)a[i]=b.charCodeAt(i);return a}
+function docImage(relId,name,w='1200000',h='1350000',shape='rect'){const geom=shape==='ellipse'?'<a:prstGeom prst="ellipse"><a:avLst/></a:prstGeom>':'<a:prstGeom prst="rect"><a:avLst/></a:prstGeom>';return `<w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${w}" cy="${h}"/><wp:docPr id="${Math.floor(Math.random()*900000)+1}" name="${escXml(name)}"/><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="0" name="${escXml(name)}"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="${relId}" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${w}" cy="${h}"/></a:xfrm>${geom}</pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing>`}
+function run(text,bold=false,size=18){return `<w:r><w:rPr>${bold?'<w:b/>':''}<w:sz w:val="${size}"/></w:rPr><w:t xml:space="preserve">${escXml(text)}</w:t></w:r>`}
+function para(text='',bold=false,size=18,align='center'){return `<w:p><w:pPr><w:jc w:val="${align}"/><w:spacing w:after="80"/></w:pPr>${run(text,bold,size)}</w:p>`}
+function pageBreak(){return '<w:p><w:r><w:br w:type="page"/></w:r></w:p>'}
+async function makeDocx(){showBusy('Inatengeneza Word .docx...');try{const zip=new JSZip(),rels=[],mediaFiles=[];let rid=1;function addImg(data){if(!data)return null;const name=`image${mediaFiles.length+1}.jpg`,id=`rId${rid++}`;mediaFiles.push({name,data});rels.push({id,name});return id}let body='';
+body+=para($('schoolName').value,true,32)+para($('coverHeading').value,true,28)+para($('coverSubheading').value,true,22);if(media.logo){const id=addImg(media.logo);body+=`<w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r>${docImage(id,'School Logo','1200000','1200000')}</w:r></w:p>`}if(media.school){const id=addImg(media.school);body+=`<w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r>${docImage(id,'School Photo','4800000','2600000')}</w:r></w:p>`}if(media.graduates){const id=addImg(media.graduates);body+=`<w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r>${docImage(id,'Graduates','5200000','2700000')}</w:r></w:p>`}if($('coverMotto').value)body+=para('“'+$('coverMotto').value+'”',false,20);body+=pageBreak();
+body+=para('WELCOME TO OUR CLASS MEMORY BOOK',true,28)+para($('schoolName').value,false,20)+para(`${$('className').value} ${$('year').value}`,true,24)+para('A collection of faces, dreams, friendships and memories.',false,20)+pageBreak();
+for(let start=0;start<students.length;start+=12){const page=students.slice(start,start+12);body+=para(`${$('className').value} ${$('year').value}`,true,24)+para($('pageTitle').value,true,20);body+='<w:tbl><w:tblPr><w:tblW w:w="10000" w:type="dxa"/><w:tblLayout w:type="fixed"/><w:tblBorders><w:top w:val="nil"/><w:left w:val="nil"/><w:bottom w:val="nil"/><w:right w:val="nil"/><w:insideH w:val="nil"/><w:insideV w:val="nil"/></w:tblBorders></w:tblPr>';for(let r=0;r<3;r++){body+='<w:tr>';for(let c=0;c<4;c++){const s=page[r*4+c];body+='<w:tc><w:tcPr><w:tcW w:w="2500" w:type="dxa"/><w:tcMar><w:top w:w="50" w:type="dxa"/><w:bottom w:w="50" w:type="dxa"/><w:start w:w="60" w:type="dxa"/><w:end w:w="60" w:type="dxa"/></w:tcMar></w:tcPr>';if(s){if(s.photo){const id=addImg(s.photo);body+=`<w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r>${docImage(id,'Student Profile','1200000','1200000','ellipse')}</w:r></w:p>`}body+=`<w:p><w:pPr><w:jc w:val="center"/></w:pPr>${run('Jina: ',true,13)}${run(s.name,false,13)}</w:p>`;body+=`<w:p><w:pPr><w:jc w:val="center"/></w:pPr>${run('Somo analopenda: ',true,11)}${run(s.subject||'',false,11)}</w:p>`;body+=`<w:p><w:pPr><w:jc w:val="center"/></w:pPr>${run('Ndoto yake: ',true,11)}${run(s.dream||'',false,11)}</w:p>`}body+='</w:tc>'}body+='</w:tr>'}body+='</w:tbl>';if(start+12<students.length)body+=pageBreak()}
+if(staff.length){body+=pageBreak()+para('STAFF MEMBERS',true,28)+para($('schoolName').value,true,18);body+='<w:tbl><w:tblPr><w:tblW w:w="10000" w:type="dxa"/><w:tblLayout w:type="fixed"/></w:tblPr>';for(let r=0;r<Math.ceil(staff.length/4);r++){body+='<w:tr>';for(let c=0;c<4;c++){const s=staff[r*4+c];body+='<w:tc><w:tcPr><w:tcW w:w="2500" w:type="dxa"/></w:tcPr>';if(s){if(s.photo){const id=addImg(s.photo);body+=`<w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r>${docImage(id,'Staff Profile','1300000','1300000','ellipse')}</w:r></w:p>`}body+=para(s.name,true,14)+para(s.job,false,12)}body+='</w:tc>'}body+='</w:tr>'}body+='</w:tbl>'}
+function profileDoc(label,name,title,msg,img){let x=pageBreak()+para(label,true,26);if(img){const id=addImg(img);x+=`<w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r>${docImage(id,label,'2500000','2500000','ellipse')}</w:r></w:p>`}x+=para(name,true,24)+para(title,true,16)+para(msg,false,18);return x}
+body+=profileDoc('MGENI RASMI',$('guestName').value,$('guestTitle').value,$('guestMessage').value,media.guestPhoto);body+=profileDoc('NENO LA MKUU WA SHULE',$('headName').value,$('headTitle').value,$('headMessage').value,media.headPhoto);body+=pageBreak()+para($('closeHeading').value,true,30);if(media.closePhoto){const id=addImg(media.closePhoto);body+=`<w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r>${docImage(id,'Closing Photo','4200000','2800000')}</w:r></w:p>`}body+=para($('closeMessage').value,false,20)+para('“'+$('closeQuote').value+'”',false,22)+para($('closeSchool').value||$('schoolName').value,true,18)+para($('closeFooter').value,false,16);
+const documentXml=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"><w:body>${body}<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="650" w:right="650" w:bottom="650" w:left="650"/></w:sectPr></w:body></w:document>`;
+const docRels=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>`;let mediaRels='';rels.forEach(x=>mediaRels+=`<Relationship Id="${x.id}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/${x.name}"/>`);const documentRels=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${mediaRels}</Relationships>`;let types=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Default Extension="jpg" ContentType="image/jpeg"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>`;zip.file('[Content_Types].xml',types);zip.folder('_rels').file('.rels',docRels);zip.folder('word').file('document.xml',documentXml);zip.folder('word').folder('_rels').file('document.xml.rels',documentRels);mediaFiles.forEach(x=>zip.folder('word').folder('media').file(x.name,b64Bytes(x.data)));const blob=await zip.generateAsync({type:'blob',compression:'DEFLATE'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`${($('className').value||'Class')}_${($('year').value||'Book')}.docx`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000)}catch(e){console.error(e);alert('Imeshindikana kutengeneza DOCX: '+e.message)}finally{hideBusy()}}
+$('docxBtn').onclick=makeDocx;
+(async()=>{loadSettings();previewMedia('logoPrev',media.logo);previewMedia('schoolPrev',media.school);previewMedia('graduatesPrev',media.graduates);previewMedia('guestPhotoPrev',media.guestPhoto);previewMedia('headPhotoPrev',media.headPhoto);previewMedia('closePhotoPrev',media.closePhoto);previewMedia('closeLogoPrev',media.closeLogo);students=await loadStore('students');staff=await loadStore('staff');
+// Migrate old student fields from previous version.
+students=students.map(s=>({...s,subject:s.subject||'',dream:s.dream||s.extra||''}));renderList();renderBook()})().catch(e=>{console.error(e);alert('Mfumo umeshindwa kufungua database. Tumia Chrome/Edge na ufungue index.html kupitia browser.')});

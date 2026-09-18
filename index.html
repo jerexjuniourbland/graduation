@@ -1,137 +1,41 @@
 <!DOCTYPE html>
 <html lang="sw">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Graduate Profile Booklet</title>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css">
-  <link rel="stylesheet" href="style.css">
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Class Book Generator</title><link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <header class="app-header">
-    <div>
-      <h1>Graduate Profile Booklet</h1>
-      <p>Ongeza, hariri, panga na tengeneza PDF/Word ya wahitimu — watu 12 kwa ukurasa.</p>
-    </div>
-    <div class="header-actions">
-      <button class="btn secondary" id="saveBtn">💾 Save Data</button>
-      <button class="btn" id="pdfBtn">📄 Download PDF</button>
-      <button class="btn" id="wordBtn">📝 Download Word</button>
-      <button class="btn dark" id="printBtn">🖨️ Print</button>
-    </div>
-  </header>
+<header class="topbar"><div><h1>📖 Class Book Generator</h1><p>Kitabu cha wanafunzi, staff, mgeni rasmi na mkuu wa shule.</p></div><div class="actions"><button id="previewBtn">Preview</button><button id="printBtn">PDF / Print</button><button id="docxBtn" class="primary">Download Word (.docx)</button></div></header>
+<main class="container">
+<section class="panel"><h2>1. Taarifa za Kitabu</h2><div class="grid four">
+<label>Jina la shule<input id="schoolName" placeholder="Mfano: Busegwe Girls High School"></label>
+<label>Class<input id="className" value="FORM IV"></label><label>Mwaka<input id="year" value="2026"></label><label>Title ya student pages<input id="pageTitle" value="CLASS MEMBERS"></label>
+</div></section>
 
-  <main class="container">
-    <section class="panel form-panel">
-      <div class="panel-title">
-        <h2 id="formTitle">Ongeza Mhitimu</h2>
-        <span id="editingBadge" class="badge hidden">Editing</span>
-      </div>
+<section class="panel"><h2>2. Front Cover</h2><div class="grid four">
+<label>Cover heading<input id="coverHeading" value="FORM IV CLASS 2026"></label><label>Cover sub-heading<input id="coverSubheading" value="GRADUATION / CLASS BOOK"></label><label>Motto<input id="coverMotto" placeholder="Mfano: A Journey to Remember"></label><label>Theme<select id="coverTheme"><option value="navy">Navy & Gold</option><option value="green">Green & Gold</option><option value="maroon">Maroon & Gold</option><option value="blue">Blue & Silver</option></select></label>
+</div><div class="media-grid"><div><b>Logo ya shule</b><input type="file" id="logo" accept="image/*"><div id="logoPrev" class="mini-preview">Logo</div></div><div><b>Picha ya shule</b><input type="file" id="schoolPhoto" accept="image/*"><div id="schoolPrev" class="mini-preview">School photo</div></div><div><b>Picha ya wahitimu pamoja</b><input type="file" id="graduates" accept="image/*"><div id="graduatesPrev" class="mini-preview">Group photo</div></div></div></section>
 
-      <form id="studentForm">
-        <input type="hidden" id="editIndex" value="-1">
+<section class="panel"><div class="section-head"><h2>3. Wanafunzi</h2><span id="countBadge">0 / 40</span></div>
+<form id="studentForm" class="student-form"><input type="hidden" id="editIndex" value="-1">
+<div><div id="photoPreview" class="student-photo-input circle-photo">PHOTO</div><input type="file" id="photo" accept="image/*"><small>Chagua picha kisha tumia <b>Crop Photo</b> kuweka uso/profile vizuri.</small><button type="button" id="cropBtn" class="crop-btn" disabled>✂ Crop Photo</button></div>
+<div class="form-fields"><label>Jina<input id="studentName" required placeholder="AGNESS CHARLES CHARLES"></label><label>Somo analopenda<input id="studentSubject" placeholder="Mfano: Mathematics"></label><label>Ndoto yake<input id="studentDream" placeholder="Mfano: Doctor"></label><div><button class="primary" id="saveBtn" type="submit">+ Add Student</button><button type="button" id="clearBtn">Clear</button></div></div></form>
+<div id="studentList"></div></section>
 
-        <div class="form-grid">
-          <label>
-            Jina la Mhitimu
-            <input id="name" type="text" placeholder="Mf. Jeremiah Makweba Dani" required>
-          </label>
+<section class="panel"><div class="section-head"><h2>4. Staff Members</h2><span id="staffCount">0</span></div>
+<form id="staffForm" class="staff-form"><input type="hidden" id="staffEditIndex" value="-1"><div><div id="staffPhotoPreview" class="staff-photo-input circle-photo">PHOTO</div><input type="file" id="staffPhoto" accept="image/*"></div><div class="form-fields"><label>Jina la staff<input id="staffName" placeholder="Mfano: John Peter"></label><label>Kazi / Cheo<input id="staffJob" placeholder="Mfano: Academic Teacher"></label><div><button class="primary" type="submit" id="staffSaveBtn">+ Add Staff</button><button type="button" id="staffClearBtn">Clear</button></div></div></form>
+<div id="staffList"></div></section>
 
-          <label>
-            Mahali anapotoka
-            <input id="place" type="text" placeholder="Mf. Bunda" required>
-          </label>
+<section class="panel"><h2>5. Mgeni Rasmi</h2><div class="grid two"><label>Jina<input id="guestName" placeholder="Jina la mgeni rasmi"></label><label>Cheo<input id="guestTitle" placeholder="Mfano: District Education Officer"></label></div><label>Neno / Ujumbe wa Mgeni Rasmi<textarea id="guestMessage" placeholder="Andika neno la mgeni rasmi..."></textarea></label><div class="single-media"><input type="file" id="guestPhoto" accept="image/*"><div id="guestPhotoPrev" class="mini-preview">Guest photo</div></div></section>
 
-          <label>
-            Somo analopenda
-            <input id="subject" type="text" placeholder="Mf. Biology" required>
-          </label>
+<section class="panel"><h2>6. Mkuu wa Shule</h2><div class="grid two"><label>Jina la Mkuu wa Shule<input id="headName" placeholder="Jina la mkuu wa shule"></label><label>Cheo<input id="headTitle" value="HEADMASTER / HEADMISTRESS"></label></div><label>Neno la Mkuu wa Shule<textarea id="headMessage" placeholder="Andika neno la mkuu wa shule..."></textarea></label><div class="single-media"><input type="file" id="headPhoto" accept="image/*"><div id="headPhotoPrev" class="mini-preview">Headmaster photo</div></div></section>
 
-          <label>
-            Ndoto yake
-            <input id="dream" type="text" placeholder="Mf. Doctor" required>
-          </label>
-        </div>
+<section class="panel"><h2>7. Closing Page</h2><div class="grid four"><label>Heading<input id="closeHeading" value="OUR JOURNEY CONTINUES"></label><label>Closing quote<input id="closeQuote" value="Dream Big • Work Hard • Stay Humble"></label><label>Footer<input id="closeFooter" placeholder="Class of 2026"></label><label>School name on closing<input id="closeSchool" placeholder="Automatic from school name"></label></div><label>Ujumbe wa mwisho<textarea id="closeMessage">This is not the end. It is the beginning of a new chapter. May every graduate carry the memories, lessons and friendships of this journey into a bright future.</textarea></label><div class="media-grid"><div><b>Closing photo</b><input type="file" id="closePhoto" accept="image/*"><div id="closePhotoPrev" class="mini-preview">Closing photo</div></div><div><b>Closing logo</b><input type="file" id="closeLogo" accept="image/*"><div id="closeLogoPrev" class="mini-preview">Logo</div></div></div></section>
 
-        <div class="photo-area">
-          <div class="photo-preview-wrap">
-            <img id="photoPreview" class="photo-preview empty" alt="Preview">
-            <div id="photoPlaceholder">📷<br><small>Hakuna picha</small></div>
-          </div>
+<section class="panel"><div class="section-head"><h2>8. Preview ya Kitabu</h2><span>Cover → Information → Students 12/page → Staff → Guest → Headmaster → Closing</span></div><div id="bookPreview" class="book-preview"></div></section>
+</main>
 
-          <div class="photo-controls">
-            <label class="file-label">
-              Chagua Picha
-              <input id="photoInput" type="file" accept="image/*">
-            </label>
-            <button type="button" class="btn secondary" id="cropBtn" disabled>✂️ Crop Picha</button>
-            <p class="hint">Baada ya kuchagua picha, bonyeza <b>Crop Picha</b>. Picha itahifadhiwa ikiwa duara kwenye profile.</p>
-          </div>
-        </div>
-
-        <div class="form-actions">
-          <button class="btn" type="submit" id="submitBtn">➕ Add Mhitimu</button>
-          <button class="btn secondary" type="button" id="cancelEditBtn">↩️ Cancel / Clear</button>
-        </div>
-      </form>
-    </section>
-
-    <section class="panel">
-      <div class="panel-title">
-        <div>
-          <h2>Preview</h2>
-          <p class="muted">Page moja = wahitimu 12 (4 × 3).</p>
-        </div>
-        <div class="preview-tools">
-          <label>
-            Kichwa cha ukurasa
-            <input id="pageTitle" value="FORM IV CLASS 2023" type="text">
-          </label>
-          <label>
-            Sub-title
-            <input id="pageSubtitle" value="CLASS MEMBERS" type="text">
-          </label>
-        </div>
-      </div>
-
-      <div id="bookletPreview" class="booklet"></div>
-    </section>
-
-    <section class="panel student-list-panel">
-      <div class="panel-title">
-        <div>
-          <h2>Orodha ya Wahitimu</h2>
-          <p class="muted">Bonyeza Edit kubadilisha taarifa ya mtu.</p>
-        </div>
-        <strong id="studentCount">0</strong>
-      </div>
-      <div id="studentList" class="student-list"></div>
-    </section>
-  </main>
-
-  <!-- Crop Modal -->
-  <div id="cropModal" class="modal hidden">
-    <div class="modal-card">
-      <div class="modal-head">
-        <h3>Crop Picha</h3>
-        <button id="closeCrop" class="icon-btn">×</button>
-      </div>
-      <div class="crop-box">
-        <img id="cropImage" alt="Crop target">
-      </div>
-      <div class="modal-actions">
-        <button class="btn secondary" id="rotateLeft" type="button">↶ Rotate</button>
-        <button class="btn secondary" id="rotateRight" type="button">↷ Rotate</button>
-        <button class="btn" id="applyCrop" type="button">✓ Tumia Picha</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Libraries -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/docx@9.5.1/build/index.umd.js"></script>
-  <script src="app.js"></script>
-</body>
-</html>
+<!-- Crop modal -->
+<div id="cropModal" class="modal hidden"><div class="modal-card"><div class="modal-head"><h3>✂ Crop Student Photo</h3><button id="closeCrop" class="xbtn">×</button></div><div class="crop-stage"><canvas id="cropCanvas" width="500" height="500"></canvas></div><div class="crop-controls"><label>Zoom <input id="zoomRange" type="range" min="1" max="3" step="0.01" value="1"></label><label>Horizontal <input id="xRange" type="range" min="-100" max="100" step="1" value="0"></label><label>Vertical <input id="yRange" type="range" min="-100" max="100" step="1" value="0"></label></div><div class="modal-actions"><button id="cancelCrop">Cancel</button><button id="applyCrop" class="primary">Use Cropped Photo</button></div></div></div>
+<script src="jszip.min.js"></script><script src="app.js"></script>
+</body></html>
